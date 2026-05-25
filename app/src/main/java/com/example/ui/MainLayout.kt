@@ -206,6 +206,22 @@ fun WelcomeConfigurationScreen(viewModel: AppViewModel, settings: AppSettings?) 
         }
     )
 
+    val jsonPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            if (uri != null) {
+                try {
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        val jsonString = String(stream.readBytes(), Charsets.UTF_8)
+                        viewModel.setRepoJson(jsonString)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -272,10 +288,25 @@ fun WelcomeConfigurationScreen(viewModel: AppViewModel, settings: AppSettings?) 
                     Text("בחר קובץ ZIP / 7Z מהמכשיר", fontWeight = FontWeight.Bold)
                 }
 
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedButton(
+                    onClick = { jsonPickerLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*")) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(Icons.Filled.Code, contentDescription = "JSON")
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text("בחר קובץ repo_struct.json בנפרד", fontWeight = FontWeight.Bold)
+                }
+
                 if (settings?.zipFileUri != null && settings.repoJsonString == null) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
-                        text = "⚠️ נמצא קובץ ZIP אך לא חולץ ממנו קובץ repo_struct.json. וודא שבשורש ה-ZIP קיים קובץ המבנה.",
+                        text = "⚠️ נמצא קובץ ZIP אך לא חולץ ממנו קובץ repo_struct.json. וודא שבשורש ה-ZIP קיים קובץ המבנה, או לחץ על הכפתור למעלה ובחר את קובץ repo_struct.json מהמכשיר בנפרד.",
                         color = MaterialTheme.colorScheme.error,
                         fontSize = 12.sp,
                         textAlign = TextAlign.Center
@@ -1194,6 +1225,22 @@ fun ConfigurationTabScreen(viewModel: AppViewModel, settings: AppSettings?) {
         }
     )
 
+    val jsonPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            if (uri != null) {
+                try {
+                    context.contentResolver.openInputStream(uri)?.use { stream ->
+                        val jsonString = String(stream.readBytes(), Charsets.UTF_8)
+                        viewModel.setRepoJson(jsonString)
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -1236,6 +1283,26 @@ fun ConfigurationTabScreen(viewModel: AppViewModel, settings: AppSettings?) {
 
                     IconButton(onClick = { filePickerLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/x-7z-compressed", "application/octet-stream", "*/*")) }) {
                         Icon(Icons.Filled.Sync, contentDescription = "קובץ חדש", tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "טען קובץ repo_struct.json בנפרד",
+                        fontSize = 13.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    IconButton(onClick = { jsonPickerLauncher.launch(arrayOf("application/json", "application/octet-stream", "*/*")) }) {
+                        Icon(Icons.Filled.Code, contentDescription = "קובץ מבנה בנפרד", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
             }

@@ -70,8 +70,8 @@ object ZipHelper {
     fun findAndExtractRepoStruct(context: Context, zipUri: Uri): String? {
         var tempFile: File? = null
         try {
-            tempFile = copyToTempFile(context, zipUri)
             if (isSevenZip(context, zipUri)) {
+                tempFile = copyToTempFile(context, zipUri)
                 SevenZFile(tempFile).use { sevenZ ->
                     var entry = sevenZ.nextEntry
                     while (entry != null) {
@@ -93,7 +93,7 @@ object ZipHelper {
                 val contentResolver = context.contentResolver
                 contentResolver.openInputStream(zipUri)?.use { inputStream ->
                     ZipInputStream(inputStream).use { zipInput ->
-                        var entry: ZipEntry? = zipInput.getNextEntry()
+                        var entry: ZipEntry? = zipInput.nextEntry
                         while (entry != null) {
                             val name = entry.name
                             if (name.endsWith("repo_struct.json", ignoreCase = true)) {
@@ -107,7 +107,7 @@ object ZipHelper {
                                 return stringBuilder.toString()
                             }
                             zipInput.closeEntry()
-                            entry = zipInput.getNextEntry()
+                            entry = zipInput.nextEntry
                         }
                     }
                 }
@@ -128,8 +128,8 @@ object ZipHelper {
         val questions = mutableListOf<Question>()
         var tempFile: File? = null
         try {
-            tempFile = copyToTempFile(context, zipUri)
             if (isSevenZip(context, zipUri)) {
+                tempFile = copyToTempFile(context, zipUri)
                 SevenZFile(tempFile).use { sevenZ ->
                     val entryName = filePath.replace("\\", "/")
                     var entry = sevenZ.nextEntry
@@ -146,15 +146,7 @@ object ZipHelper {
                                     offset += read
                                 }
                                 val text = String(bytes, Charsets.UTF_8)
-                                text.lineSequence().forEach { line ->
-                                    val trimmed = line.trim()
-                                    if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
-                                        val parseQ = parseAnkiLine(trimmed, filePath, importedKeys)
-                                        if (parseQ != null) {
-                                            questions.add(parseQ)
-                                        }
-                                    }
-                                }
+                                parseTxtContent(text, filePath, importedKeys, questions)
                                 break
                             }
                         }
@@ -162,34 +154,29 @@ object ZipHelper {
                     }
                 }
             } else {
-                ZipFile(tempFile).use { zipFile ->
-                    val entryName = filePath.replace("\\", "/")
-                    var entry = zipFile.getEntry(entryName)
-                    if (entry == null) {
-                        val entries = zipFile.entries()
-                        while (entries.hasMoreElements()) {
-                            val next = entries.nextElement()
-                            if (next.name.replace("\\", "/").equals(entryName, ignoreCase = true)) {
-                                entry = next
+                context.contentResolver.openInputStream(zipUri)?.use { inputStream ->
+                    ZipInputStream(inputStream).use { zipInput ->
+                        val entryName = filePath.replace("\\", "/")
+                        var entry: ZipEntry? = zipInput.nextEntry
+                        while (entry != null) {
+                            val name = entry.name.replace("\\", "/")
+                            if (name.equals(entryName, ignoreCase = true)) {
+                                val reader = BufferedReader(InputStreamReader(zipInput, "UTF-8"))
+                                var line = reader.readLine()
+                                while (line != null) {
+                                    val trimmed = line.trim()
+                                    if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                                        val parseQ = parseAnkiLine(trimmed, filePath, importedKeys)
+                                        if (parseQ != null) {
+                                            questions.add(parseQ)
+                                        }
+                                    }
+                                    line = reader.readLine()
+                                }
                                 break
                             }
-                        }
-                    }
-
-                    if (entry != null) {
-                        zipFile.getInputStream(entry).use { stream ->
-                            val reader = BufferedReader(InputStreamReader(stream, "UTF-8"))
-                            var line = reader.readLine()
-                            while (line != null) {
-                                val trimmed = line.trim()
-                                if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
-                                    val parseQ = parseAnkiLine(trimmed, filePath, importedKeys)
-                                    if (parseQ != null) {
-                                        questions.add(parseQ)
-                                    }
-                                }
-                                line = reader.readLine()
-                            }
+                            zipInput.closeEntry()
+                            entry = zipInput.nextEntry
                         }
                     }
                 }
@@ -200,6 +187,18 @@ object ZipHelper {
             tempFile?.delete()
         }
         return questions
+    }
+
+    private fun parseTxtContent(text: String, filePath: String, importedKeys: Set<String>, questions: MutableList<Question>) {
+        text.lineSequence().forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
+                val parseQ = parseAnkiLine(trimmed, filePath, importedKeys)
+                if (parseQ != null) {
+                    questions.add(parseQ)
+                }
+            }
+        }
     }
 
     private fun parseAnkiLine(line: String, sourceFile: String, importedKeys: Set<String>): Question? {
@@ -241,7 +240,6 @@ object ZipHelper {
         var tempSourceFile: File? = null
         try {
             onProgress(0.05f, "מתחיל הכנת קובץ...")
-            tempSourceFile = copyToTempFile(context, zipUri)
             val outputZipFile = File(context.cacheDir, "anki_import_${System.currentTimeMillis()}.zip")
             
             val is7z = isSevenZip(context, zipUri)
@@ -268,6 +266,7 @@ object ZipHelper {
                 
                 if (totalMedia > 0) {
                     if (is7z) {
+                        tempSourceFile = copyToTempFile(context, zipUri)
                         SevenZFile(tempSourceFile).use { sevenZ ->
                             var entry = sevenZ.nextEntry
                             var extractedCount = 0
@@ -298,21 +297,39 @@ object ZipHelper {
                             }
                         }
                     } else {
-                        ZipFile(tempSourceFile).use { sourceZip ->
-                            val mediaEntriesMap = scanMediaInZip(sourceZip)
-                            for ((idx, mediaName) in mediaNames.withIndex()) {
-                                onProgress(
-                                    0.2f + (idx.toFloat() / totalMedia) * 0.75f,
-                                    "מעתיק קבצי מדיה: $mediaName ($idx/$totalMedia)"
-                                )
-
-                                val sourceEntry = mediaEntriesMap[mediaName.lowercase()]
-                                if (sourceEntry != null) {
-                                    zos.putNextEntry(ZipEntry(mediaName))
-                                    sourceZip.getInputStream(sourceEntry).use { input ->
-                                        input.copyTo(zos)
+                        // ZIP - Streaming copy in a single pass, absolutely NO copy to temp file!
+                        context.contentResolver.openInputStream(zipUri)?.use { inputStream ->
+                            ZipInputStream(inputStream).use { zipInput ->
+                                var entry = zipInput.nextEntry
+                                var copiedCount = 0
+                                val targetMediaLower = mediaNames.map { it.lowercase() }.toSet()
+                                val targetToRealName = mediaNames.associateBy { it.lowercase() }
+                                
+                                val buffer = ByteArray(4096)
+                                while (entry != null) {
+                                    if (!entry.isDirectory) {
+                                        val path = entry.name.replace("\\", "/")
+                                        if (path.contains("/media/", ignoreCase = true) || path.startsWith("media/", ignoreCase = true)) {
+                                            val filename = path.substringAfterLast("/").lowercase()
+                                            if (targetMediaLower.contains(filename)) {
+                                                val realName = targetToRealName[filename] ?: filename
+                                                onProgress(
+                                                    0.2f + (copiedCount.toFloat() / totalMedia) * 0.75f,
+                                                    "מעתיק קבצי מדיה: $realName ($copiedCount/$totalMedia)"
+                                                )
+                                                zos.putNextEntry(ZipEntry(realName))
+                                                var bytesRead = zipInput.read(buffer)
+                                                while (bytesRead != -1) {
+                                                    zos.write(buffer, 0, bytesRead)
+                                                    bytesRead = zipInput.read(buffer)
+                                                }
+                                                zos.closeEntry()
+                                                copiedCount++
+                                            }
+                                        }
                                     }
-                                    zos.closeEntry()
+                                    zipInput.closeEntry()
+                                    entry = zipInput.nextEntry
                                 }
                             }
                         }
