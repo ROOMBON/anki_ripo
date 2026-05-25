@@ -1,0 +1,6 @@
+{
+  "name": "מאגר השאלות",
+  "description": "עוזר מאגר השאלות לאנקידרואיד. תומך בייבוא שלם וחלקי של כרטיסים מקובץ ZIP, ניהול מסלולים יומיים, תזכורות וחיפוש מתקדם בגימטריא.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
