@@ -1,5 +1,6 @@
 package com.example.worker
 
+import android.annotation.SuppressLint
 import android.app.AlarmManager
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -98,6 +99,7 @@ object NotificationAlarmHelper {
         }
     }
 
+    @SuppressLint("MissingPermission", "NotificationPermission")
     fun triggerNotification(context: Context) {
         createNotificationChannel(context)
 

@@ -55,6 +55,7 @@ fun MainLayout(viewModel: AppViewModel) {
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val exportedZipFile by viewModel.exportedZipFile.collectAsStateWithLifecycle()
     val partialFileToImport by viewModel.partialImportFile.collectAsStateWithLifecycle()
+    val ankiImportResult by viewModel.ankiImportResult.collectAsStateWithLifecycle()
 
     // Handle exported file sharing
     LaunchedEffect(exportedZipFile) {
@@ -159,6 +160,23 @@ fun MainLayout(viewModel: AppViewModel) {
                 if (partialFileToImport != null) {
                     PartialImportSheet(viewModel = viewModel)
                 }
+
+                // Global dialog for direct Anki import results
+                ankiImportResult?.let { msg ->
+                    AlertDialog(
+                        onDismissRequest = { viewModel.clearAnkiImportResult() },
+                        title = { Text("תוצאת ייבוא לאנקידראויד", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+                        text = { Text(msg, fontSize = 14.sp) },
+                        confirmButton = {
+                            Button(
+                                onClick = { viewModel.clearAnkiImportResult() },
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("אישור")
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -235,7 +253,7 @@ fun WelcomeConfigurationScreen(viewModel: AppViewModel, settings: AppSettings?) 
                 Spacer(modifier = Modifier.height(8.dp))
 
                 Text(
-                    text = "כדי להתחיל, עליך לטעון את קובץ המאגר הראשי (קובץ ZIP המכיל את השאלות ואת מבנה התיקיות repo_struct.json)",
+                    text = "כדי להתחיל, עליך לטעון את קובץ המאגר הראשי (קובץ ZIP או 7Z המכיל את השאלות ואת מבנה התיקיות repo_struct.json)",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -245,13 +263,13 @@ fun WelcomeConfigurationScreen(viewModel: AppViewModel, settings: AppSettings?) 
                 Spacer(modifier = Modifier.height(32.dp))
 
                 Button(
-                    onClick = { filePickerLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed")) },
+                    onClick = { filePickerLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/x-7z-compressed", "application/octet-stream", "*/*")) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Icon(Icons.Filled.FileUpload, contentDescription = "Upload")
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("בחר קובץ ZIP מהמכשיר", fontWeight = FontWeight.Bold)
+                    Text("בחר קובץ ZIP / 7Z מהמכשיר", fontWeight = FontWeight.Bold)
                 }
 
                 if (settings?.zipFileUri != null && settings.repoJsonString == null) {
@@ -415,34 +433,64 @@ fun RepositoryScreen(viewModel: AppViewModel) {
                     .padding(16.dp),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                        .padding(16.dp)
                 ) {
-                    Column {
-                        Text(
-                            text = "סומנו ${selectedFiles.size} קבצים",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
-                        )
-                        Text(
-                            text = "לחץ כעת כדי לייבא לאנקידרואיד",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                text = "סומנו ${selectedFiles.size} קבצים",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                            Text(
+                                text = "בחר שיטת ייבוא לאנקידרואיד:",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
 
-                    Button(
-                        onClick = { viewModel.executeImport() },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(12.dp)
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Filled.Share, contentDescription = "ייבוא")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("ייבא שאלות", fontWeight = FontWeight.Bold)
+                        // Direct import via AnkiDroid API
+                        Button(
+                            onClick = { viewModel.executeAnkiDroidImport() },
+                            modifier = Modifier.weight(1.0f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Filled.Bolt, contentDescription = "ייבוא ישיר API")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("ייבוא ישיר API", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
+
+                        // Share ZIP file
+                        Button(
+                            onClick = { viewModel.executeImport() },
+                            modifier = Modifier.weight(1.0f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Filled.Share, contentDescription = "שיתוף ZIP")
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("ייצוא ושיתוף", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
                     }
                 }
             }
@@ -716,19 +764,40 @@ fun PartialImportSheet(viewModel: AppViewModel) {
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Button(
-                        onClick = { viewModel.executePartialImport() },
-                        enabled = selectedKeys.isNotEmpty(),
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(Icons.Filled.FileUpload, contentDescription = "ייבוא חלקי")
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "ייבא ${selectedKeys.size} שאלות שנבחרו",
-                            fontWeight = FontWeight.Bold
-                        )
+                        // Direct import via AnkiDroid API
+                        Button(
+                            onClick = { viewModel.executeAnkiDroidPartialImport() },
+                            enabled = selectedKeys.isNotEmpty(),
+                            modifier = Modifier.weight(1.0f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Filled.Bolt, contentDescription = "ייבוא ישיר API")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("ייבוא ישיר API", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+
+                        // Export ZIP and share
+                        Button(
+                            onClick = { viewModel.executePartialImport() },
+                            enabled = selectedKeys.isNotEmpty(),
+                            modifier = Modifier.weight(1.0f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Icon(Icons.Filled.Share, contentDescription = "שיתוף ZIP")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("ייצוא ושיתוף", fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
                     }
                 }
             }
@@ -1156,7 +1225,7 @@ fun ConfigurationTabScreen(viewModel: AppViewModel, settings: AppSettings?) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "קובץ ZIP: $zipFileName", fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(text = "קובץ מאגר: $zipFileName", fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
                             text = if (settings?.repoJsonString != null) "✓ קובץ המבנה repo_struct.json חולץ בהצלחה" else "✗ קובץ המבנה טרם נטען",
                             fontSize = 11.sp,
@@ -1165,7 +1234,7 @@ fun ConfigurationTabScreen(viewModel: AppViewModel, settings: AppSettings?) {
                         )
                     }
 
-                    IconButton(onClick = { filePickerLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed")) }) {
+                    IconButton(onClick = { filePickerLauncher.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/x-7z-compressed", "application/octet-stream", "*/*")) }) {
                         Icon(Icons.Filled.Sync, contentDescription = "קובץ חדש", tint = MaterialTheme.colorScheme.primary)
                     }
                 }

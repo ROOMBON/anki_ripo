@@ -499,4 +499,151 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun clearExportedState() {
         _exportedZipFile.value = null
     }
+
+    // ----------------------------------------------------
+    // Direct AnkiDroid API Importing
+    // ----------------------------------------------------
+
+    private val _ankiImportResult = MutableStateFlow<String?>(null)
+    val ankiImportResult: StateFlow<String?> = _ankiImportResult.asStateFlow()
+
+    fun clearAnkiImportResult() {
+        _ankiImportResult.value = null
+    }
+
+    fun isAnkiDroidAvailable(): Boolean {
+        return AnkiDroidHelper.isApiAvailable(context)
+    }
+
+    fun executeAnkiDroidImport() {
+        val uriStr = settingsFlow.value?.zipFileUri ?: return
+        val uri = Uri.parse(uriStr)
+
+        val filesToExtract = _selectedFilePaths.value.toList()
+        if (filesToExtract.isEmpty()) return
+
+        _importProgress.value = 0.0f to "מתחיל ייבוא ישיר לאנקידראויד..."
+        _ankiImportResult.value = null
+
+        viewModelScope.launch {
+            try {
+                val successCount = withContext(Dispatchers.IO) {
+                    val importedKeysSet = dao.getAllImportedKeys().toSet()
+                    var addedCount = 0
+                    
+                    val modelId = AnkiDroidHelper.getFirstModelOrFallback(context)
+                    if (modelId == null) {
+                        throw Exception("לא נמצאה תבנית כרטיסיות באנקידראויד. אנא ודא שהאפליקציה מותקנת ומוגדרת כראוי.")
+                    }
+
+                    val allQuestionsToMark = mutableListOf<ImportedQuestion>()
+
+                    for ((fileIdx, filePath) in filesToExtract.withIndex()) {
+                        val percent = 0.1f + (fileIdx.toFloat() / filesToExtract.size) * 0.3f
+                        val simpleName = filePath.substringAfterLast("/").substringBeforeLast(".")
+                        _importProgress.value = percent to "קורא שאלות מתוך: $simpleName"
+                        
+                        val qList = ZipHelper.readAndParseTxtFile(context, uri, filePath, importedKeysSet)
+                        if (qList.isEmpty()) continue
+
+                        // Convert relative filePath to clean deck name
+                        // e.g. "מאגר השאלות/רגיל/פנימית.txt" -> "מאגר השאלות::רגיל::פנימית"
+                        val cleanPath = filePath.replace("\\", "/").removeSuffix(".txt")
+                        val segments = cleanPath.split("/").filter { it.isNotBlank() }
+                        val deckName = segments.joinToString("::")
+
+                        _importProgress.value = percent to "יוצר/מוצא חפיסה באנקי: $deckName"
+                        val deckId = AnkiDroidHelper.findOrCreateDeck(context, deckName)
+                        if (deckId == null) {
+                            throw Exception("שגיאה ביצירת החפיסה באנקידראויד: $deckName")
+                        }
+
+                        for ((cardIdx, q) in qList.withIndex()) {
+                            val cardProgress = percent + ((cardIdx.toFloat() / qList.size) * (0.6f / filesToExtract.size))
+                            _importProgress.value = cardProgress to "מייבא כרטיסייה: ${cardIdx + 1}/${qList.size} לחפיסה $simpleName"
+                            
+                            val insertedUri = AnkiDroidHelper.addNote(context, deckId, modelId, q.front, q.back, "AnkiQaBank")
+                            if (insertedUri != null) {
+                                allQuestionsToMark.add(ImportedQuestion(q.key))
+                                addedCount++
+                            }
+                        }
+                    }
+
+                    if (allQuestionsToMark.isNotEmpty()) {
+                        dao.markQuestionsImported(allQuestionsToMark)
+                    }
+                    addedCount
+                }
+                _ankiImportResult.value = "הייבוא הושלם בהצלחה! נוספו $successCount כרטיסיות ישירות לחשבון האנקידראויד שלך."
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _ankiImportResult.value = "הייבוא נכשל: ${e.message}"
+            } finally {
+                _importProgress.value = null
+            }
+        }
+    }
+
+    fun executeAnkiDroidPartialImport() {
+        val uriStr = settingsFlow.value?.zipFileUri ?: return
+        val uri = Uri.parse(uriStr)
+
+        val filePath = _partialImportFile.value ?: return
+        val selectedKeys = _selectedPartialKeys.value
+        val questionsInFile = _partialQuestions.value
+
+        val selectedQuestions = questionsInFile.filter { selectedKeys.contains(it.key) }
+        if (selectedQuestions.isEmpty()) return
+
+        _importProgress.value = 0.0f to "מייבא שאלות נבחרות לאנקידראויד..."
+        _ankiImportResult.value = null
+
+        viewModelScope.launch {
+            try {
+                val successCount = withContext(Dispatchers.IO) {
+                    val modelId = AnkiDroidHelper.getFirstModelOrFallback(context)
+                    if (modelId == null) {
+                        throw Exception("לא נמצאה תבנית כרטיסיות באנקידראויד. אנא ודא שהאפליקציה מותקנת ומוגדרת כראוי.")
+                    }
+
+                    // Deck name
+                    val cleanPath = filePath.replace("\\", "/").removeSuffix(".txt")
+                    val segments = cleanPath.split("/").filter { it.isNotBlank() }
+                    val deckName = segments.joinToString("::")
+
+                    val deckId = AnkiDroidHelper.findOrCreateDeck(context, deckName)
+                    if (deckId == null) {
+                        throw Exception("שגיאה ביצירת החפיסה באנקידראויד: $deckName")
+                    }
+
+                    var addedCount = 0
+                    val allQuestionsToMark = mutableListOf<ImportedQuestion>()
+
+                    for ((idx, q) in selectedQuestions.withIndex()) {
+                        val fraction = idx.toFloat() / selectedQuestions.size
+                        _importProgress.value = fraction to "מייבא כרטיסייה ${idx + 1}/${selectedQuestions.size}..."
+
+                        val insertedUri = AnkiDroidHelper.addNote(context, deckId, modelId, q.front, q.back, "AnkiQaBank")
+                        if (insertedUri != null) {
+                            allQuestionsToMark.add(ImportedQuestion(q.key))
+                            addedCount++
+                        }
+                    }
+
+                    if (allQuestionsToMark.isNotEmpty()) {
+                        dao.markQuestionsImported(allQuestionsToMark)
+                    }
+                    addedCount
+                }
+                _ankiImportResult.value = "ייבוא חלקי הושלם בהצלחה! נוספו $successCount כרטיסיות ישירות לאנקידראויד."
+                closePartialImport()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _ankiImportResult.value = "הייבוא נכשל: ${e.message}"
+            } finally {
+                _importProgress.value = null
+            }
+        }
+    }
 }
