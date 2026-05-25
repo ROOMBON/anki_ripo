@@ -349,7 +349,7 @@ fun RepositoryScreen(viewModel: AppViewModel) {
         AnimatedVisibility(visible = searchQuery.isEmpty()) {
             // Folder Navigation Breadcrumbs
             ScrollableTabRow(
-                selectedTabIndex = currentPath.size - 1,
+                selectedTabIndex = (currentPath.size - 1).coerceAtLeast(0),
                 edgePadding = 16.dp,
                 containerColor = Color.Transparent,
                 divider = {}

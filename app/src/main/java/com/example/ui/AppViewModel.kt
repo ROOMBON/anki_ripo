@@ -95,13 +95,20 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // ----------------------------------------------------
     init {
         viewModelScope.launch {
+            var lastRepoJson: String? = null
             settingsFlow.collectLatest { settings ->
                 if (settings != null && !settings.repoJsonString.isNullOrBlank()) {
-                    val root = RepoParser.parseJson(settings.repoJsonString)
-                    _repoTree.value = root
-                    _currentPath.value = listOf(root?.name ?: "מאגר השאלות")
-                    updateDirContents()
+                    if (settings.repoJsonString != lastRepoJson) {
+                        lastRepoJson = settings.repoJsonString
+                        val root = withContext(Dispatchers.Default) {
+                            RepoParser.parseJson(settings.repoJsonString)
+                        }
+                        _repoTree.value = root
+                        _currentPath.value = listOf(root?.name ?: "מאגר השאלות")
+                        updateDirContents()
+                    }
                 } else {
+                    lastRepoJson = null
                     _repoTree.value = null
                     _currentDirContents.value = emptyList()
                     _currentPath.value = emptyList()
