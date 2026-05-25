@@ -24,13 +24,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
 
     private val context = application.applicationContext
     
-    private val database: AppDatabase by lazy {
-        Room.databaseBuilder(
-            context,
-            AppDatabase::class.java,
-            "anki_qa_database"
-        ).build()
-    }
+    private val database: AppDatabase = Room.databaseBuilder(
+        context,
+        AppDatabase::class.java,
+        "anki_qa_database"
+    ).build()
     
     private val dao = database.appDao()
 
