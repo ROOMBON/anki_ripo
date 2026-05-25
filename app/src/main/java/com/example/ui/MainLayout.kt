@@ -212,11 +212,12 @@ fun WelcomeConfigurationScreen(viewModel: AppViewModel, settings: AppSettings?) 
             if (uri != null) {
                 try {
                     context.contentResolver.openInputStream(uri)?.use { stream ->
-                        val jsonString = String(stream.readBytes(), Charsets.UTF_8)
+                        val jsonString = String(stream.readBytes(), Charsets.UTF_8).trimStart('\uFEFF')
                         viewModel.setRepoJson(jsonString)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
+                    Toast.makeText(context, "שגיאה בקריאת הקובץ: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
@@ -1231,11 +1232,12 @@ fun ConfigurationTabScreen(viewModel: AppViewModel, settings: AppSettings?) {
             if (uri != null) {
                 try {
                     context.contentResolver.openInputStream(uri)?.use { stream ->
-                        val jsonString = String(stream.readBytes(), Charsets.UTF_8)
+                        val jsonString = String(stream.readBytes(), Charsets.UTF_8).trimStart('\uFEFF')
                         viewModel.setRepoJson(jsonString)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
+                    Toast.makeText(context, "שגיאה בקריאת הקובץ: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }

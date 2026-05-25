@@ -101,7 +101,12 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     if (settings.repoJsonString != lastRepoJson) {
                         lastRepoJson = settings.repoJsonString
                         val root = withContext(Dispatchers.Default) {
-                            RepoParser.parseJson(settings.repoJsonString)
+                            try {
+                                RepoParser.parseJson(settings.repoJsonString)
+                            } catch (e: Exception) {
+                                e.printStackTrace()
+                                null
+                            }
                         }
                         _repoTree.value = root
                         _currentPath.value = listOf(root?.name ?: "מאגר השאלות")
