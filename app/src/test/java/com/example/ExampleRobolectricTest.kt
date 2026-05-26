@@ -39,7 +39,7 @@ class ExampleRobolectricTest {
               }
             ]
           }
-      """.trimIndent())
+      """.trimIndent(), Charsets.UTF_8)
 
       dao.saveSettings(AppSettings(
           id = 1,

@@ -347,26 +347,28 @@ fun RepositoryScreen(viewModel: AppViewModel) {
             shape = RoundedCornerShape(12.dp)
         )
 
-        AnimatedVisibility(visible = searchQuery.isEmpty()) {
+        AnimatedVisibility(visible = searchQuery.isEmpty() && currentPath.isNotEmpty()) {
             // Folder Navigation Breadcrumbs
-            ScrollableTabRow(
-                selectedTabIndex = (currentPath.size - 1).coerceAtLeast(0),
-                edgePadding = 16.dp,
-                containerColor = Color.Transparent,
-                divider = {}
-            ) {
-                currentPath.forEachIndexed { idx, folderName ->
-                    Tab(
-                        selected = idx == currentPath.size - 1,
-                        onClick = { viewModel.navigateTo(idx) },
-                        text = {
-                            Text(
-                                text = folderName,
-                                fontWeight = if (idx == currentPath.size - 1) FontWeight.Bold else FontWeight.Normal,
-                                color = if (idx == currentPath.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    )
+            if (currentPath.isNotEmpty()) {
+                ScrollableTabRow(
+                    selectedTabIndex = (currentPath.size - 1).coerceAtLeast(0),
+                    edgePadding = 16.dp,
+                    containerColor = Color.Transparent,
+                    divider = {}
+                ) {
+                    currentPath.forEachIndexed { idx, folderName ->
+                        Tab(
+                            selected = idx == currentPath.size - 1,
+                            onClick = { viewModel.navigateTo(idx) },
+                            text = {
+                                Text(
+                                    text = folderName,
+                                    fontWeight = if (idx == currentPath.size - 1) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (idx == currentPath.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        )
+                    }
                 }
             }
         }

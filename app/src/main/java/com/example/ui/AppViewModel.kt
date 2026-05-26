@@ -107,7 +107,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         val root = withContext(Dispatchers.Default) {
                             try {
                                 if (file.exists()) {
-                                    val jsonContent = file.readText()
+                                    val jsonContent = file.readText(Charsets.UTF_8)
                                     RepoParser.parseJson(jsonContent)
                                 } else {
                                     null
@@ -149,7 +149,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 withContext(Dispatchers.IO) {
                     try {
                         val file = File(context.filesDir, "repo_tree.json")
-                        file.writeText(repoJson)
+                        file.writeText(repoJson, Charsets.UTF_8)
                         file.absolutePath
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -177,7 +177,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val savedPath = withContext(Dispatchers.IO) {
                 try {
                     val file = File(context.filesDir, "repo_tree.json")
-                    file.writeText(jsonString)
+                    file.writeText(jsonString, Charsets.UTF_8)
                     file.absolutePath
                 } catch (e: Exception) {
                     e.printStackTrace()
