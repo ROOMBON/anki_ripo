@@ -31,7 +31,20 @@ object AnkiDroidHelper {
         cachedActiveAuthority?.let { return it }
 
         val pm = context.packageManager
-        // 1. First try the PackageManager check (highly reliable on Android 11+ thanks to <queries>)
+        // 1. First try checking if the packages are installed via getPackageInfo
+        // Highly reliable on Android 11+ because of `<package>` tags under `<queries>` in AndroidManifest.xml
+        for (auth in KNOWN_AUTHORITIES) {
+            val packageName = auth.removeSuffix(".providers.CardContentProvider")
+            try {
+                pm.getPackageInfo(packageName, 0)
+                cachedActiveAuthority = auth
+                return auth
+            } catch (e: Exception) {
+                // Ignore and proceed
+            }
+        }
+
+        // 2. Try the PackageManager resolveContentProvider check
         for (auth in KNOWN_AUTHORITIES) {
             try {
                 val info = pm.resolveContentProvider(auth, 0)
@@ -44,7 +57,7 @@ object AnkiDroidHelper {
             }
         }
 
-        // 2. As a robust fallback, verify resolving via ContentResolver
+        // 3. As a robust fallback, verify resolving via ContentResolver query
         for (auth in KNOWN_AUTHORITIES) {
             val uri = Uri.parse("content://$auth/decks")
             try {
@@ -78,33 +91,38 @@ object AnkiDroidHelper {
 
     fun getConnectionStatus(context: Context): ConnectionStatus {
         val auth = getActiveAuthority(context)
+        
+        // 1. Check if the corresponding package is installed first
+        val packageName = auth.removeSuffix(".providers.CardContentProvider")
+        val pm = context.packageManager
+        val isInstalled = try {
+            pm.getPackageInfo(packageName, 0)
+            true
+        } catch (e: Exception) {
+            try {
+                pm.resolveContentProvider(auth, 0) != null
+            } catch (ex: Exception) {
+                false
+            }
+        }
+
+        if (!isInstalled) {
+            return ConnectionStatus.NOT_INSTALLED
+        }
+
+        // 2. Query to see if the API is enabled or disabled (handles SecurityExceptions)
         val uri = Uri.parse("content://$auth/decks")
         return try {
             val cursor = context.contentResolver.query(uri, arrayOf("id"), null, null, null)
             if (cursor != null) {
                 cursor.close()
-                ConnectionStatus.OK
-            } else {
-                // If query returns null, check PackageManager to distinguish between not installed and api disabled/permission issues.
-                val pm = context.packageManager
-                val info = try { pm.resolveContentProvider(auth, 0) } catch (e: Exception) { null }
-                if (info != null) {
-                    ConnectionStatus.API_DISABLED
-                } else {
-                    ConnectionStatus.NOT_INSTALLED
-                }
             }
+            ConnectionStatus.OK
         } catch (e: SecurityException) {
             ConnectionStatus.API_DISABLED
         } catch (e: Exception) {
-            // Check PackageManager to distinguish other exceptions
-            val pm = context.packageManager
-            val info = try { pm.resolveContentProvider(auth, 0) } catch (ex: Exception) { null }
-            if (info != null) {
-                ConnectionStatus.API_DISABLED
-            } else {
-                ConnectionStatus.NOT_INSTALLED
-            }
+            // General query failures after confirming package is installed means either API is disabled or pending approval
+            ConnectionStatus.API_DISABLED
         }
     }
 
