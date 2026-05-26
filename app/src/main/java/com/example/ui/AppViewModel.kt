@@ -585,8 +585,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun executeAnkiDroidImport() {
-        if (!AnkiDroidHelper.isApiAvailable(context)) {
-            _ankiImportResult.value = "הייבוא נכשל: AnkiDroid איננה מותקנת במכשיר זה."
+        val status = AnkiDroidHelper.getConnectionStatus(context)
+        if (status == AnkiDroidHelper.ConnectionStatus.NOT_INSTALLED) {
+            _ankiImportResult.value = "הייבוא נכשל: אפליקציית AnkiDroid איננה מותקנת במכשיר זה."
+            return
+        } else if (status == AnkiDroidHelper.ConnectionStatus.API_DISABLED) {
+            _ankiImportResult.value = "הייבוא נכשל: אינטגרציית ה-API של AnkiDroid כבויה.\n\n" +
+                    "כדי לתקן זאת:\n" +
+                    "1. פתח את אפליקציית AnkiDroid במכשירך.\n" +
+                    "2. היכנס להגדרות (Settings) -> מתקדמים (Advanced).\n" +
+                    "3. סמן/הפעל את האפשרות \"אינטגרציית ה-API של AnkiDroid\" (AnkiDroid API integration).\n" +
+                    "4. חזור לכאן ונסה שוב."
             return
         }
 
@@ -683,8 +692,17 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun executeAnkiDroidPartialImport() {
-        if (!AnkiDroidHelper.isApiAvailable(context)) {
-            _ankiImportResult.value = "הייבוא נכשל: AnkiDroid איננה מותקנת במכשיר זה."
+        val status = AnkiDroidHelper.getConnectionStatus(context)
+        if (status == AnkiDroidHelper.ConnectionStatus.NOT_INSTALLED) {
+            _ankiImportResult.value = "הייבוא נכשל: אפליקציית AnkiDroid איננה מותקנת במכשיר זה."
+            return
+        } else if (status == AnkiDroidHelper.ConnectionStatus.API_DISABLED) {
+            _ankiImportResult.value = "הייבוא נכשל: אינטגרציית ה-API של AnkiDroid כבויה.\n\n" +
+                    "כדי לתקן זאת:\n" +
+                    "1. פתח את אפליקציית AnkiDroid במכשירך.\n" +
+                    "2. היכנס להגדרות (Settings) -> מתקדמים (Advanced).\n" +
+                    "3. סמן/הפעל את האפשרות \"אינטגרציית ה-API של AnkiDroid\" (AnkiDroid API integration).\n" +
+                    "4. חזור לכאן ונסה שוב."
             return
         }
 

@@ -18,15 +18,34 @@ object AnkiDroidHelper {
         "com.ichi2.anki.parallel.providers.CardContentProvider"
     )
 
+    enum class ConnectionStatus {
+        OK,
+        API_DISABLED,
+        NOT_INSTALLED
+    }
+
+    @Volatile
+    private var cachedActiveAuthority: String? = null
+
     fun getActiveAuthority(context: Context): String {
-        val pm = context.packageManager
+        cachedActiveAuthority?.let { return it }
+
         for (auth in KNOWN_AUTHORITIES) {
+            val uri = Uri.parse("content://$auth/decks")
             try {
-                if (pm.resolveContentProvider(auth, 0) != null) {
-                    return auth
-                }
-            } catch (e: Exception) {}
+                val cursor = context.contentResolver.query(uri, arrayOf("id"), null, null, null)
+                cursor?.close()
+                cachedActiveAuthority = auth
+                return auth
+            } catch (e: SecurityException) {
+                // Content provider exists and responds with security check, so this is the installed/active authority!
+                cachedActiveAuthority = auth
+                return auth
+            } catch (e: Exception) {
+                // Other exceptions typical of non-existent or inaccessible provider authorities
+            }
         }
+        
         return "com.ichi2.anki.providers.CardContentProvider" // Fallback
     }
 
@@ -40,6 +59,24 @@ object AnkiDroidHelper {
         return "$packageName.permission.READ_WRITE_DATABASE"
     }
 
+    fun getConnectionStatus(context: Context): ConnectionStatus {
+        val auth = getActiveAuthority(context)
+        val uri = Uri.parse("content://$auth/decks")
+        return try {
+            val cursor = context.contentResolver.query(uri, arrayOf("id"), null, null, null)
+            if (cursor != null) {
+                cursor.close()
+                ConnectionStatus.OK
+            } else {
+                ConnectionStatus.OK
+            }
+        } catch (e: SecurityException) {
+            ConnectionStatus.API_DISABLED
+        } catch (e: Exception) {
+            ConnectionStatus.NOT_INSTALLED
+        }
+    }
+
     const val AUTHORITY = "com.ichi2.anki.providers.CardContentProvider"
     val CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY")
     
@@ -50,13 +87,7 @@ object AnkiDroidHelper {
      * Checks if AnkiDroid is installed and its ContentProvider API is available.
      */
     fun isApiAvailable(context: Context): Boolean {
-        return try {
-            val pm = context.packageManager
-            val providerInfo = pm.resolveContentProvider(getActiveAuthority(context), 0)
-            providerInfo != null
-        } catch (e: Exception) {
-            false
-        }
+        return getConnectionStatus(context) != ConnectionStatus.NOT_INSTALLED
     }
     
     /**
