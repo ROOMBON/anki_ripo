@@ -139,17 +139,21 @@ fun MainLayout(viewModel: AppViewModel) {
                                     .padding(24.dp),
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
-                                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                                Spacer(modifier = Modifier.height(16.dp))
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(52.dp),
+                                    strokeWidth = 4.dp,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(20.dp))
                                 Text(
                                     text = description,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 16.sp,
                                     textAlign = TextAlign.Center
                                 )
-                                Spacer(modifier = Modifier.height(8.dp))
+                                Spacer(modifier = Modifier.height(12.dp))
                                 LinearProgressIndicator(
-                                    progress = { fraction },
+                                    progress = fraction,
                                     modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)),
                                     color = MaterialTheme.colorScheme.tertiary
                                 )
@@ -409,7 +413,11 @@ fun RepositoryScreen(viewModel: AppViewModel) {
                 when (val state = searchResults) {
                     is SearchResultsState.Searching -> {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator()
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(48.dp),
+                                strokeWidth = 4.dp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
                         }
                     }
                     is SearchResultsState.Success -> {

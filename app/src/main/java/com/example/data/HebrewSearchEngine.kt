@@ -122,4 +122,26 @@ object HebrewSearchEngine {
         }
         return true
     }
+
+    fun buildSearchPathForNode(nodeName: String, parentSearchPath: String, isFile: Boolean): String {
+        val cleanName = if (isFile) {
+            nodeName.removeSuffix(".txt").replace("_", " ")
+        } else {
+            val n = if (nodeName.endsWith("$")) nodeName.dropLast(1) else nodeName
+            n.replace("%", " ")
+        }
+
+        val displayTokens = getTokens(cleanName)
+        val chapterKey = if (isFile && displayTokens.isNotEmpty() && isGematriaTerm(displayTokens.last())) {
+            displayTokens.last()
+        } else {
+            ""
+        }
+
+        return if (parentSearchPath.isEmpty()) {
+            if (chapterKey.isNotEmpty()) "$chapterKey::$cleanName" else cleanName
+        } else {
+            if (chapterKey.isNotEmpty()) "$parentSearchPath::$chapterKey::$cleanName" else "$parentSearchPath::$cleanName"
+        }
+    }
 }

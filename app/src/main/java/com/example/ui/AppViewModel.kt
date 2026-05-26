@@ -339,25 +339,29 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val results = withContext(Dispatchers.Default) {
                 val matched = mutableListOf<Pair<String, RepoNode>>()
                 
-                fun searchNode(node: RepoNode, currentPath: String) {
+                fun searchNode(node: RepoNode, currentPath: String, parentSearchPath: String) {
                     if (searchJob?.isActive != true) return
                     val nodePath = if (currentPath.isEmpty()) node.name else "$currentPath/${node.name}"
                     
+                    val nodeSearchPath = HebrewSearchEngine.buildSearchPathForNode(
+                        node.name,
+                        parentSearchPath,
+                        node.isFile
+                    )
+                    
                     if (node.isFile) {
-                        // Replicate Python search with custom gematria-lookup scoped to the second-to-last segment
-                        val formattedSearchPath = nodePath.replace("/", "::")
-                        if (HebrewSearchEngine.orderedTermsMatch(formattedSearchPath, query)) {
+                        if (HebrewSearchEngine.orderedTermsMatch(nodeSearchPath, query)) {
                             matched.add(nodePath to node)
                         }
                     } else {
                         for (child in node.children) {
                             if (searchJob?.isActive != true) return
-                            searchNode(child, nodePath)
+                            searchNode(child, nodePath, nodeSearchPath)
                         }
                     }
                 }
                 
-                searchNode(root, "")
+                searchNode(root, "", "")
                 matched
             }
             
@@ -598,7 +602,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     
                     val globalFallbackId = AnkiDroidHelper.getFirstModelOrFallback(context)
                     if (globalFallbackId == null) {
-                        throw Exception("לא נמצאה תבנית כרטיסיות באנקידראויד. אנא ודא שהאפליקציה מותקנת ומוגדרת כראוי.")
+                        throw Exception(
+                            "לא נמצאו סוגי רשומות (תבניות כרטיסיות) באנקידראויד.\n\n" +
+                            "הסיבה השכיחה ביותר היא שאינטגרציית ה-API כבויה בהגדרות AnkiDroid.\n" +
+                            "כדי לתקן זאת:\n" +
+                            "1. פתח את אפליקציית AnkiDroid במכשירך.\n" +
+                            "2. כנס להגדרות (Settings) -> מתקדמים (Advanced).\n" +
+                            "3. סמן/הפעל את האפשרות \"אינטגרציית ה-API של AnkiDroid\" (AnkiDroid API integration).\n" +
+                            "4. חזור לאפליקציה הזו ונסה שוב."
+                        )
                     }
 
                     val resolvedModelsCache = mutableMapOf<String, Long>()
@@ -683,7 +695,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 val successCount = withContext(Dispatchers.IO) {
                     val globalFallbackId = AnkiDroidHelper.getFirstModelOrFallback(context)
                     if (globalFallbackId == null) {
-                        throw Exception("לא נמצאה תבנית כרטיסיות באנקידראויד. אנא ודא שהאפליקציה מותקנת ומוגדרת כראוי.")
+                        throw Exception(
+                            "לא נמצאו סוגי רשומות (תבניות כרטיסיות) באנקידראויד.\n\n" +
+                            "הסיבה השכיחה ביותר היא שאינטגרציית ה-API כבויה בהגדרות AnkiDroid.\n" +
+                            "כדי לתקן זאת:\n" +
+                            "1. פתח את אפליקציית AnkiDroid במכשירך.\n" +
+                            "2. כנס להגדרות (Settings) -> מתקדמים (Advanced).\n" +
+                            "3. סמן/הפעל את האפשרות \"אינטגרציית ה-API של AnkiDroid\" (AnkiDroid API integration).\n" +
+                            "4. חזור לאפליקציה הזו ונסה שוב."
+                        )
                     }
 
                     val resolvedModelsCache = mutableMapOf<String, Long>()
