@@ -586,9 +586,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     val importedKeysSet = dao.getAllImportedKeys().toSet()
                     var addedCount = 0
                     
-                    val modelId = AnkiDroidHelper.getFirstModelOrFallback(context)
-                    if (modelId == null) {
+                    val globalFallbackId = AnkiDroidHelper.getFirstModelOrFallback(context)
+                    if (globalFallbackId == null) {
                         throw Exception("לא נמצאה תבנית כרטיסיות באנקידראויד. אנא ודא שהאפליקציה מותקנת ומוגדרת כראוי.")
+                    }
+
+                    val resolvedModelsCache = mutableMapOf<String, Long>()
+                    fun getCachedModelId(modelName: String): Long? {
+                        return resolvedModelsCache.getOrPut(modelName) {
+                            AnkiDroidHelper.getOrInsertModel(context, modelName)
+                                ?: AnkiDroidHelper.getFirstModelOrFallback(context)
+                                ?: 0L
+                        }.takeIf { it != 0L }
                     }
 
                     val allQuestionsToMark = mutableListOf<ImportedQuestion>()
@@ -617,10 +626,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                             val cardProgress = percent + ((cardIdx.toFloat() / qList.size) * (0.6f / filesToExtract.size))
                             _importProgress.value = cardProgress to "מייבא כרטיסייה: ${cardIdx + 1}/${qList.size} לחפיסה $simpleName"
                             
-                            val insertedUri = AnkiDroidHelper.addNote(context, deckId, modelId, q.front, q.back, "AnkiQaBank")
-                            if (insertedUri != null) {
-                                allQuestionsToMark.add(ImportedQuestion(q.key))
-                                addedCount++
+                            val modelName = AnkiDroidHelper.selectModelForFile(filePath, q.rawText)
+                            val activeModelId = getCachedModelId(modelName)
+                            if (activeModelId != null) {
+                                val fieldsStr = AnkiDroidHelper.getFieldsForModel(modelName, q.rawText)
+                                val insertedUri = AnkiDroidHelper.addNoteWithFields(context, deckId, activeModelId, fieldsStr, "מאגר_לאנקי")
+                                if (insertedUri != null) {
+                                    allQuestionsToMark.add(ImportedQuestion(q.key))
+                                    addedCount++
+                                }
                             }
                         }
                     }
@@ -657,9 +671,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val successCount = withContext(Dispatchers.IO) {
-                    val modelId = AnkiDroidHelper.getFirstModelOrFallback(context)
-                    if (modelId == null) {
+                    val globalFallbackId = AnkiDroidHelper.getFirstModelOrFallback(context)
+                    if (globalFallbackId == null) {
                         throw Exception("לא נמצאה תבנית כרטיסיות באנקידראויד. אנא ודא שהאפליקציה מותקנת ומוגדרת כראוי.")
+                    }
+
+                    val resolvedModelsCache = mutableMapOf<String, Long>()
+                    fun getCachedModelId(modelName: String): Long? {
+                        return resolvedModelsCache.getOrPut(modelName) {
+                            AnkiDroidHelper.getOrInsertModel(context, modelName)
+                                ?: AnkiDroidHelper.getFirstModelOrFallback(context)
+                                ?: 0L
+                        }.takeIf { it != 0L }
                     }
 
                     // Deck name
@@ -679,10 +702,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         val fraction = idx.toFloat() / selectedQuestions.size
                         _importProgress.value = fraction to "מייבא כרטיסייה ${idx + 1}/${selectedQuestions.size}..."
 
-                        val insertedUri = AnkiDroidHelper.addNote(context, deckId, modelId, q.front, q.back, "AnkiQaBank")
-                        if (insertedUri != null) {
-                            allQuestionsToMark.add(ImportedQuestion(q.key))
-                            addedCount++
+                        val modelName = AnkiDroidHelper.selectModelForFile(filePath, q.rawText)
+                        val activeModelId = getCachedModelId(modelName)
+                        if (activeModelId != null) {
+                            val fieldsStr = AnkiDroidHelper.getFieldsForModel(modelName, q.rawText)
+                            val insertedUri = AnkiDroidHelper.addNoteWithFields(context, deckId, activeModelId, fieldsStr, "מאגר_לאנקי")
+                            if (insertedUri != null) {
+                                allQuestionsToMark.add(ImportedQuestion(q.key))
+                                addedCount++
+                            }
                         }
                     }
 
