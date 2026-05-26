@@ -26,6 +26,45 @@ data class Question(
 
 object ZipHelper {
 
+    private fun safeGetCharset(name: String): java.nio.charset.Charset? {
+        return try {
+            java.nio.charset.Charset.forName(name)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    fun decodeWindows1255(bytes: ByteArray): String {
+        val sb = java.lang.StringBuilder(bytes.size)
+        for (b in bytes) {
+            val i = b.toInt() and 0xFF
+            when (i) {
+                in 0x00..0x7F -> sb.append(i.toChar())
+                in 0xE0..0xFA -> sb.append((i - 0xE0 + 0x05D0).toChar())
+                in 0xC0..0xDF -> sb.append((i - 0xC0 + 0x05B0).toChar())
+                0x91 -> sb.append('‘')
+                0x92 -> sb.append('’')
+                0x93 -> sb.append('“')
+                0x94 -> sb.append('”')
+                else -> sb.append(i.toChar())
+            }
+        }
+        return sb.toString()
+    }
+
+    fun decodeIBM862(bytes: ByteArray): String {
+        val sb = java.lang.StringBuilder(bytes.size)
+        for (b in bytes) {
+            val i = b.toInt() and 0xFF
+            when (i) {
+                in 0x00..0x7F -> sb.append(i.toChar())
+                in 0x80..0x9A -> sb.append((i - 0x80 + 0x05D0).toChar())
+                else -> sb.append(i.toChar())
+            }
+        }
+        return sb.toString()
+    }
+
     fun decodeBytesToHebrewString(bytes: ByteArray): String {
         if (bytes.isEmpty()) return ""
 
@@ -58,31 +97,24 @@ object ZipHelper {
             return utf8String
         }
 
-        // 4. Try legacy Windows-1255 Hebrew encoding
-        try {
-            val charset1255 = java.nio.charset.Charset.forName("windows-1255")
-            val candidate = String(bytes, charset1255)
-            // Check if it contains Hebrew characters (Unicode range 0x0590 to 0x05FF)
-            if (candidate.any { it in '\u0590'..'\u05FF' }) {
-                return candidate
+        // If it isn't valid UTF-8, detect between legacy Windows-1255/ISO-8859-8 and IBM862 using character counts
+        var score1255 = 0
+        var score862 = 0
+        for (b in bytes) {
+            val i = b.toInt() and 0xFF
+            if (i in 0xE0..0xFA) {
+                score1255++
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
+            if (i in 0x80..0x9A) {
+                score862++
+            }
         }
 
-        // 5. Try ISO-8859-8 Hebrew encoding
-        try {
-            val charsetIso = java.nio.charset.Charset.forName("ISO-8859-8")
-            val candidate = String(bytes, charsetIso)
-            if (candidate.any { it in '\u0590'..'\u05FF' }) {
-                return candidate
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
+        return if (score862 > score1255) {
+            decodeIBM862(bytes)
+        } else {
+            decodeWindows1255(bytes)
         }
-
-        // Last resort: return the UTF-8 version
-        return utf8String
     }
 
     fun isSevenZip(context: Context, uri: Uri): Boolean {
@@ -151,7 +183,12 @@ object ZipHelper {
             } else {
                 val contentResolver = context.contentResolver
                 // Try finding repo_struct.json with different ZIP header encoding fallback
-                val charsetsToTry = listOf(Charsets.UTF_8, java.nio.charset.Charset.forName("windows-1255"), java.nio.charset.Charset.forName("IBM862"))
+                val charsetsToTry = listOfNotNull(
+                    Charsets.UTF_8,
+                    safeGetCharset("windows-1255"),
+                    safeGetCharset("ISO-8859-8"),
+                    safeGetCharset("IBM862")
+                )
                 for (charset in charsetsToTry) {
                     try {
                         contentResolver.openInputStream(zipUri)?.use { inputStream ->
@@ -218,10 +255,11 @@ object ZipHelper {
                 val entryName = filePath.replace("\\", "/")
                 var found = false
                 // Try opening zip using different entry name charsets
-                val charsetsToTry = listOf(
+                val charsetsToTry = listOfNotNull(
                     Charsets.UTF_8,
-                    java.nio.charset.Charset.forName("windows-1255"),
-                    java.nio.charset.Charset.forName("IBM862")
+                    safeGetCharset("windows-1255"),
+                    safeGetCharset("ISO-8859-8"),
+                    safeGetCharset("IBM862")
                 )
                 for (charset in charsetsToTry) {
                     if (found) break
