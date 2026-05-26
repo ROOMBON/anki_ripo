@@ -585,6 +585,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun executeAnkiDroidImport() {
+        if (!AnkiDroidHelper.isApiAvailable(context)) {
+            _ankiImportResult.value = "הייבוא נכשל: AnkiDroid איננה מותקנת במכשיר זה."
+            return
+        }
+
         val uriStr = settingsFlow.value?.zipFileUri ?: return
         val uri = Uri.parse(uriStr)
 
@@ -678,6 +683,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun executeAnkiDroidPartialImport() {
+        if (!AnkiDroidHelper.isApiAvailable(context)) {
+            _ankiImportResult.value = "הייבוא נכשל: AnkiDroid איננה מותקנת במכשיר זה."
+            return
+        }
+
         val uriStr = settingsFlow.value?.zipFileUri ?: return
         val uri = Uri.parse(uriStr)
 

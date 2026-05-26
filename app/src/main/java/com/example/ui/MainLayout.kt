@@ -335,17 +335,6 @@ fun RepositoryScreen(viewModel: AppViewModel) {
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val ankiPermission = com.example.data.AnkiDroidHelper.getPermissionName(context)
-    val ankiPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                viewModel.executeAnkiDroidImport()
-            } else {
-                Toast.makeText(context, "נדרשת הרשאת גישה לאנקידראויד כדי לבצע ייבוא ישיר.", Toast.LENGTH_LONG).show()
-            }
-        }
-    )
 
     Column(modifier = Modifier.fillMaxSize()) {
         // Search & Filter header
@@ -535,15 +524,7 @@ fun RepositoryScreen(viewModel: AppViewModel) {
                         // Direct import via AnkiDroid API
                         Button(
                             onClick = {
-                                val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
-                                    context,
-                                    ankiPermission
-                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                                if (isGranted) {
-                                    viewModel.executeAnkiDroidImport()
-                                } else {
-                                    ankiPermissionLauncher.launch(ankiPermission)
-                                }
+                                viewModel.executeAnkiDroidImport()
                             },
                             modifier = Modifier.weight(1.0f),
                             colors = ButtonDefaults.buttonColors(
@@ -705,17 +686,6 @@ fun PartialImportSheet(viewModel: AppViewModel) {
     val fileName = viewModel.partialImportFile.value?.substringAfterLast("/") ?: ""
 
     val context = LocalContext.current
-    val ankiPermission = com.example.data.AnkiDroidHelper.getPermissionName(context)
-    val ankiPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-        onResult = { isGranted ->
-            if (isGranted) {
-                viewModel.executeAnkiDroidPartialImport()
-            } else {
-                Toast.makeText(context, "נדרשת הרשאת גישה לאנקידראויד כדי לבצע ייבוא ישיר.", Toast.LENGTH_LONG).show()
-            }
-        }
-    )
 
     Dialog(onDismissRequest = { viewModel.closePartialImport() }) {
         Card(
@@ -863,15 +833,7 @@ fun PartialImportSheet(viewModel: AppViewModel) {
                         // Direct import via AnkiDroid API
                         Button(
                             onClick = {
-                                val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
-                                    context,
-                                    ankiPermission
-                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
-                                if (isGranted) {
-                                    viewModel.executeAnkiDroidPartialImport()
-                                } else {
-                                    ankiPermissionLauncher.launch(ankiPermission)
-                                }
+                                viewModel.executeAnkiDroidPartialImport()
                             },
                             enabled = selectedKeys.isNotEmpty(),
                             modifier = Modifier.weight(1.0f),
