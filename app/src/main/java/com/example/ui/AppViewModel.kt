@@ -28,7 +28,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         context,
         AppDatabase::class.java,
         "anki_qa_database"
-    ).build()
+    ).fallbackToDestructiveMigration().build()
     
     private val dao = database.appDao()
 
@@ -93,14 +93,25 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // ----------------------------------------------------
     init {
         viewModelScope.launch {
-            var lastRepoJson: String? = null
+            var lastRepoPath: String? = null
+            var lastRepoFileModifiedTime: Long = 0
             settingsFlow.collectLatest { settings ->
-                if (settings != null && !settings.repoJsonString.isNullOrBlank()) {
-                    if (settings.repoJsonString != lastRepoJson) {
-                        lastRepoJson = settings.repoJsonString
+                val path = settings?.repoJsonPath
+                if (!path.isNullOrBlank()) {
+                    val file = File(path)
+                    val currentModified = if (file.exists()) file.lastModified() else 0
+                    if (path != lastRepoPath || currentModified != lastRepoFileModifiedTime) {
+                        lastRepoPath = path
+                        lastRepoFileModifiedTime = currentModified
+                        
                         val root = withContext(Dispatchers.Default) {
                             try {
-                                RepoParser.parseJson(settings.repoJsonString)
+                                if (file.exists()) {
+                                    val jsonContent = file.readText()
+                                    RepoParser.parseJson(jsonContent)
+                                } else {
+                                    null
+                                }
                             } catch (e: Exception) {
                                 e.printStackTrace()
                                 null
@@ -111,7 +122,8 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         updateDirContents()
                     }
                 } else {
-                    lastRepoJson = null
+                    lastRepoPath = null
+                    lastRepoFileModifiedTime = 0
                     _repoTree.value = null
                     _currentDirContents.value = emptyList()
                     _currentPath.value = emptyList()
@@ -132,11 +144,26 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
             val repoJson = withContext(Dispatchers.IO) {
                 ZipHelper.findAndExtractRepoStruct(context, uri)
             }
+
+            val savedPath = if (repoJson != null) {
+                withContext(Dispatchers.IO) {
+                    try {
+                        val file = File(context.filesDir, "repo_tree.json")
+                        file.writeText(repoJson)
+                        file.absolutePath
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                        null
+                    }
+                }
+            } else {
+                currentSettings.repoJsonPath
+            }
             
             val updatedSettings = currentSettings.copy(
                 zipFileUri = uri.toString(),
                 zipFileName = fileName,
-                repoJsonString = repoJson ?: currentSettings.repoJsonString
+                repoJsonPath = savedPath
             )
             
             dao.saveSettings(updatedSettings)
@@ -147,8 +174,18 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun setRepoJson(jsonString: String) {
         viewModelScope.launch {
             val currentSettings = dao.getSettings() ?: AppSettings()
+            val savedPath = withContext(Dispatchers.IO) {
+                try {
+                    val file = File(context.filesDir, "repo_tree.json")
+                    file.writeText(jsonString)
+                    file.absolutePath
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    null
+                }
+            }
             val updatedSettings = currentSettings.copy(
-                repoJsonString = jsonString
+                repoJsonPath = savedPath ?: currentSettings.repoJsonPath
             )
             dao.saveSettings(updatedSettings)
         }
@@ -157,6 +194,14 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     fun clearConfiguration() {
         viewModelScope.launch {
             dao.saveSettings(AppSettings())
+            try {
+                val file = File(context.filesDir, "repo_tree.json")
+                if (file.exists()) {
+                    file.delete()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             _repoTree.value = null
             _currentPath.value = emptyList()
             _currentDirContents.value = emptyList()

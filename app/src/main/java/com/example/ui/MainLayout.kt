@@ -50,7 +50,7 @@ fun MainLayout(viewModel: AppViewModel) {
     
     val settings by viewModel.settingsFlow.collectAsStateWithLifecycle()
     val isZipLoaded = !settings?.zipFileUri.isNullOrEmpty()
-    val isRepoJsonLoaded = !settings?.repoJsonString.isNullOrEmpty()
+    val isRepoJsonLoaded = !settings?.repoJsonPath.isNullOrEmpty()
     
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val exportedZipFile by viewModel.exportedZipFile.collectAsStateWithLifecycle()
@@ -304,7 +304,7 @@ fun WelcomeConfigurationScreen(viewModel: AppViewModel, settings: AppSettings?) 
                     Text("בחר קובץ repo_struct.json בנפרד", fontWeight = FontWeight.Bold)
                 }
 
-                if (settings?.zipFileUri != null && settings.repoJsonString == null) {
+                if (settings?.zipFileUri != null && settings.repoJsonPath == null) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = "⚠️ נמצא קובץ ZIP אך לא חולץ ממנו קובץ repo_struct.json. וודא שבשורש ה-ZIP קיים קובץ המבנה, או לחץ על הכפתור למעלה ובחר את קובץ repo_struct.json מהמכשיר בנפרד.",
@@ -1276,9 +1276,9 @@ fun ConfigurationTabScreen(viewModel: AppViewModel, settings: AppSettings?) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(text = "קובץ מאגר: $zipFileName", fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
-                            text = if (settings?.repoJsonString != null) "✓ קובץ המבנה repo_struct.json חולץ בהצלחה" else "✗ קובץ המבנה טרם נטען",
+                            text = if (settings?.repoJsonPath != null) "✓ קובץ המבנה repo_struct.json חולץ בהצלחה" else "✗ קובץ המבנה טרם נטען",
                             fontSize = 11.sp,
-                            color = if (settings?.repoJsonString != null) ActiveGreen else MaterialTheme.colorScheme.error,
+                            color = if (settings?.repoJsonPath != null) ActiveGreen else MaterialTheme.colorScheme.error,
                             fontWeight = FontWeight.SemiBold
                         )
                     }

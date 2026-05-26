@@ -8,7 +8,7 @@ data class AppSettings(
     @PrimaryKey val id: Int = 1,
     val zipFileUri: String? = null,
     val zipFileName: String? = null,
-    val repoJsonString: String? = null,
+    val repoJsonPath: String? = null,
     val isDafYomiEnabled: Boolean = false,
     val lastDafYomiTriggerDate: String? = null
 )

@@ -27,22 +27,25 @@ class ExampleRobolectricTest {
       ).allowMainThreadQueries().build()
       
       val dao = db.appDao()
+      val jsonFile = java.io.File(context.filesDir, "repo_tree.json")
+      jsonFile.writeText("""
+          {
+            "name": "מאגר השאלות",
+            "type": "directory",
+            "children": [
+              {
+                "name": "קובץ 1.txt",
+                "type": "file"
+              }
+            ]
+          }
+      """.trimIndent())
+
       dao.saveSettings(AppSettings(
           id = 1,
           zipFileUri = "content://dummy/path.zip",
           zipFileName = "path.zip",
-          repoJsonString = """
-              {
-                "name": "מאגר השאלות",
-                "type": "directory",
-                "children": [
-                  {
-                    "name": "קובץ 1.txt",
-                    "type": "file"
-                  }
-                ]
-              }
-          """.trimIndent()
+          repoJsonPath = jsonFile.absolutePath
       ))
       db.close()
     }
