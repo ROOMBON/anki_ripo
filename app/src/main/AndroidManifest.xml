@@ -5,10 +5,37 @@
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="com.ichi2.anki.permission.READ_WRITE_DATABASE" />
+    <uses-permission android:name="com.ichi2.anki.parallel_A.permission.READ_WRITE_DATABASE" />
+    <uses-permission android:name="com.ichi2.anki.parallel_B.permission.READ_WRITE_DATABASE" />
+    <uses-permission android:name="com.ichi2.anki.parallel_C.permission.READ_WRITE_DATABASE" />
+    <uses-permission android:name="com.ichi2.anki.debug.permission.READ_WRITE_DATABASE" />
+    <uses-permission android:name="com.ichi2.anki.alpha.permission.READ_WRITE_DATABASE" />
+    <uses-permission android:name="com.ichi2.anki.A.permission.READ_WRITE_DATABASE" />
+    <uses-permission android:name="com.ichi2.anki.B.permission.READ_WRITE_DATABASE" />
+    <uses-permission android:name="com.ichi2.anki.C.permission.READ_WRITE_DATABASE" />
+    <uses-permission android:name="com.ichi2.anki.parallel.permission.READ_WRITE_DATABASE" />
 
     <queries>
         <package android:name="com.ichi2.anki" />
+        <package android:name="com.ichi2.anki.debug" />
+        <package android:name="com.ichi2.anki.alpha" />
+        <package android:name="com.ichi2.anki.parallel_A" />
+        <package android:name="com.ichi2.anki.parallel_B" />
+        <package android:name="com.ichi2.anki.parallel_C" />
+        <package android:name="com.ichi2.anki.A" />
+        <package android:name="com.ichi2.anki.B" />
+        <package android:name="com.ichi2.anki.C" />
+        <package android:name="com.ichi2.anki.parallel" />
         <provider android:authorities="com.ichi2.anki.providers.CardContentProvider" />
+        <provider android:authorities="com.ichi2.anki.parallel_A.providers.CardContentProvider" />
+        <provider android:authorities="com.ichi2.anki.parallel_B.providers.CardContentProvider" />
+        <provider android:authorities="com.ichi2.anki.parallel_C.providers.CardContentProvider" />
+        <provider android:authorities="com.ichi2.anki.debug.providers.CardContentProvider" />
+        <provider android:authorities="com.ichi2.anki.alpha.providers.CardContentProvider" />
+        <provider android:authorities="com.ichi2.anki.A.providers.CardContentProvider" />
+        <provider android:authorities="com.ichi2.anki.B.providers.CardContentProvider" />
+        <provider android:authorities="com.ichi2.anki.C.providers.CardContentProvider" />
+        <provider android:authorities="com.ichi2.anki.parallel.providers.CardContentProvider" />
     </queries>
 
     <application

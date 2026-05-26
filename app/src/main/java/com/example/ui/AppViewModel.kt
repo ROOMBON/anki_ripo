@@ -604,12 +604,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     if (globalFallbackId == null) {
                         throw Exception(
                             "לא נמצאו סוגי רשומות (תבניות כרטיסיות) באנקידראויד.\n\n" +
-                            "הסיבה השכיחה ביותר היא שאינטגרציית ה-API כבויה בהגדרות AnkiDroid.\n" +
-                            "כדי לתקן זאת:\n" +
-                            "1. פתח את אפליקציית AnkiDroid במכשירך.\n" +
-                            "2. כנס להגדרות (Settings) -> מתקדמים (Advanced).\n" +
-                            "3. סמן/הפעל את האפשרות \"אינטגרציית ה-API של AnkiDroid\" (AnkiDroid API integration).\n" +
-                            "4. חזור לאפליקציה הזו ונסה שוב."
+                            "הסיבות הנפוצות ביותר הן:\n" +
+                            "1. אם זו הפעם הראשונה, ייתכן שמופיעה כעת הודעת אישור (פופ-אפ או התראה במכשיר) מצד אפליקציית AnkiDroid המבקשת רשות גישה עבור האפליקציה הזו. אנא היכנס לאפליקציית AnkiDroid ואשר את החיבור!\n\n" +
+                            "2. אינטגרציית ה-API כבויה בהגדרות AnkiDroid. כדי להפעילה:\n" +
+                            "   - פתח את אפליקציית AnkiDroid במכשירך.\n" +
+                            "   - היכנס להגדרות (Settings) -> מתקדמים (Advanced).\n" +
+                            "   - סמן והפעל את האפשרות \"אינטגרציית ה-API של AnkiDroid\" (AnkiDroid API integration).\n" +
+                            "   - חזור לכאן ונסה שוב."
                         )
                     }
 
@@ -697,12 +698,13 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                     if (globalFallbackId == null) {
                         throw Exception(
                             "לא נמצאו סוגי רשומות (תבניות כרטיסיות) באנקידראויד.\n\n" +
-                            "הסיבה השכיחה ביותר היא שאינטגרציית ה-API כבויה בהגדרות AnkiDroid.\n" +
-                            "כדי לתקן זאת:\n" +
-                            "1. פתח את אפליקציית AnkiDroid במכשירך.\n" +
-                            "2. כנס להגדרות (Settings) -> מתקדמים (Advanced).\n" +
-                            "3. סמן/הפעל את האפשרות \"אינטגרציית ה-API של AnkiDroid\" (AnkiDroid API integration).\n" +
-                            "4. חזור לאפליקציה הזו ונסה שוב."
+                            "הסיבות הנפוצות ביותר הן:\n" +
+                            "1. אם זו הפעם הראשונה, ייתכן שמופיעה כעת הודעת אישור (פופ-אפ או התראה במכשיר) מצד אפליקציית AnkiDroid המבקשת רשות גישה עבור האפליקציה הזו. אנא היכנס לאפליקציית AnkiDroid ואשר את החיבור!\n\n" +
+                            "2. אינטגרציית ה-API כבויה בהגדרות AnkiDroid. כדי להפעילה:\n" +
+                            "   - פתח את אפליקציית AnkiDroid במכשירך.\n" +
+                            "   - היכנס להגדרות (Settings) -> מתקדמים (Advanced).\n" +
+                            "   - סמן והפעל את האפשרות \"אינטגרציית ה-API של AnkiDroid\" (AnkiDroid API integration).\n" +
+                            "   - חזור לכאן ונסה שוב."
                         )
                     }
 

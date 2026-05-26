@@ -335,7 +335,7 @@ fun RepositoryScreen(viewModel: AppViewModel) {
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
 
     val context = LocalContext.current
-    val ankiPermission = "com.ichi2.anki.permission.READ_WRITE_DATABASE"
+    val ankiPermission = com.example.data.AnkiDroidHelper.getPermissionName(context)
     val ankiPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -705,7 +705,7 @@ fun PartialImportSheet(viewModel: AppViewModel) {
     val fileName = viewModel.partialImportFile.value?.substringAfterLast("/") ?: ""
 
     val context = LocalContext.current
-    val ankiPermission = "com.ichi2.anki.permission.READ_WRITE_DATABASE"
+    val ankiPermission = com.example.data.AnkiDroidHelper.getPermissionName(context)
     val ankiPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->

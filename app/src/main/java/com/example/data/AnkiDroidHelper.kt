@@ -5,6 +5,41 @@ import android.content.Context
 import android.net.Uri
 
 object AnkiDroidHelper {
+    private val KNOWN_AUTHORITIES = listOf(
+        "com.ichi2.anki.providers.CardContentProvider",
+        "com.ichi2.anki.parallel_A.providers.CardContentProvider",
+        "com.ichi2.anki.parallel_B.providers.CardContentProvider",
+        "com.ichi2.anki.parallel_C.providers.CardContentProvider",
+        "com.ichi2.anki.debug.providers.CardContentProvider",
+        "com.ichi2.anki.alpha.providers.CardContentProvider",
+        "com.ichi2.anki.A.providers.CardContentProvider",
+        "com.ichi2.anki.B.providers.CardContentProvider",
+        "com.ichi2.anki.C.providers.CardContentProvider",
+        "com.ichi2.anki.parallel.providers.CardContentProvider"
+    )
+
+    fun getActiveAuthority(context: Context): String {
+        val pm = context.packageManager
+        for (auth in KNOWN_AUTHORITIES) {
+            try {
+                if (pm.resolveContentProvider(auth, 0) != null) {
+                    return auth
+                }
+            } catch (e: Exception) {}
+        }
+        return "com.ichi2.anki.providers.CardContentProvider" // Fallback
+    }
+
+    fun getContentUri(context: Context): Uri {
+        return Uri.parse("content://${getActiveAuthority(context)}")
+    }
+
+    fun getPermissionName(context: Context): String {
+        val auth = getActiveAuthority(context)
+        val packageName = auth.removeSuffix(".providers.CardContentProvider")
+        return "$packageName.permission.READ_WRITE_DATABASE"
+    }
+
     const val AUTHORITY = "com.ichi2.anki.providers.CardContentProvider"
     val CONTENT_URI: Uri = Uri.parse("content://$AUTHORITY")
     
@@ -17,7 +52,7 @@ object AnkiDroidHelper {
     fun isApiAvailable(context: Context): Boolean {
         return try {
             val pm = context.packageManager
-            val providerInfo = pm.resolveContentProvider(AUTHORITY, 0)
+            val providerInfo = pm.resolveContentProvider(getActiveAuthority(context), 0)
             providerInfo != null
         } catch (e: Exception) {
             false
@@ -29,7 +64,7 @@ object AnkiDroidHelper {
      */
     fun getDeckList(context: Context): Map<Long, String> {
         val decks = mutableMapOf<Long, String>()
-        val uri = Uri.withAppendedPath(CONTENT_URI, "decks")
+        val uri = Uri.withAppendedPath(getContentUri(context), "decks")
         try {
             val cursor = context.contentResolver.query(uri, arrayOf("id", "name"), null, null, null)
             cursor?.use {
@@ -54,7 +89,7 @@ object AnkiDroidHelper {
      */
     fun getModelList(context: Context): Map<Long, String> {
         val models = mutableMapOf<Long, String>()
-        val uri = Uri.withAppendedPath(CONTENT_URI, "models")
+        val uri = Uri.withAppendedPath(getContentUri(context), "models")
         try {
             val cursor = context.contentResolver.query(uri, arrayOf("id", "name"), null, null, null)
             cursor?.use {
@@ -85,7 +120,7 @@ object AnkiDroidHelper {
             }
         }
         
-        val uri = Uri.withAppendedPath(CONTENT_URI, "decks")
+        val uri = Uri.withAppendedPath(getContentUri(context), "decks")
         val values = ContentValues().apply {
             put("name", name)
         }
@@ -139,7 +174,7 @@ object AnkiDroidHelper {
         css: String = "",
         type: Int = 0
     ): Long? {
-        val uri = Uri.withAppendedPath(CONTENT_URI, "models")
+        val uri = Uri.withAppendedPath(getContentUri(context), "models")
         val values = ContentValues().apply {
             put("name", name)
             put("flds", fields.joinToString("\u251f"))
@@ -568,7 +603,7 @@ unicode-bidi: embed;
      * Direct API to add a single note into a deck.
      */
     fun addNote(context: Context, deckId: Long, modelId: Long, front: String, back: String, tags: String = ""): Uri? {
-        val uri = Uri.withAppendedPath(CONTENT_URI, "notes")
+        val uri = Uri.withAppendedPath(getContentUri(context), "notes")
         
         // Join card fields using a tab character \t
         val flds = "$front\t$back"
@@ -592,7 +627,7 @@ unicode-bidi: embed;
      * Overloaded API to add a single note into a deck with pre-assembled tabs.
      */
     fun addNoteWithFields(context: Context, deckId: Long, modelId: Long, flds: String, tags: String = ""): Uri? {
-        val uri = Uri.withAppendedPath(CONTENT_URI, "notes")
+        val uri = Uri.withAppendedPath(getContentUri(context), "notes")
         val values = ContentValues().apply {
             put("did", deckId)
             put("mid", modelId)
