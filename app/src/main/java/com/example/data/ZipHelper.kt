@@ -26,6 +26,65 @@ data class Question(
 
 object ZipHelper {
 
+    fun decodeBytesToHebrewString(bytes: ByteArray): String {
+        if (bytes.isEmpty()) return ""
+
+        // 1. Check for UTF-16 BE / LE BOM
+        if (bytes.size >= 2) {
+            val b0 = bytes[0].toInt() and 0xFF
+            val b1 = bytes[1].toInt() and 0xFF
+            if (b0 == 0xFE && b1 == 0xFF) {
+                return String(bytes, 2, bytes.size - 2, Charsets.UTF_16BE)
+            }
+            if (b0 == 0xFF && b1 == 0xFE) {
+                return String(bytes, 2, bytes.size - 2, Charsets.UTF_16LE)
+            }
+        }
+        
+        // 2. Check for UTF-8 BOM
+        if (bytes.size >= 3) {
+            val b0 = bytes[0].toInt() and 0xFF
+            val b1 = bytes[1].toInt() and 0xFF
+            val b2 = bytes[2].toInt() and 0xFF
+            if (b0 == 0xEF && b1 == 0xBB && b2 == 0xBF) {
+                return String(bytes, 3, bytes.size - 3, Charsets.UTF_8)
+            }
+        }
+
+        // 3. Try decoding as UTF-8
+        val utf8String = String(bytes, Charsets.UTF_8)
+        // If it doesn't contain the replacement character '\uFFFD', it's valid UTF-8!
+        if (!utf8String.contains('\uFFFD')) {
+            return utf8String
+        }
+
+        // 4. Try legacy Windows-1255 Hebrew encoding
+        try {
+            val charset1255 = java.nio.charset.Charset.forName("windows-1255")
+            val candidate = String(bytes, charset1255)
+            // Check if it contains Hebrew characters (Unicode range 0x0590 to 0x05FF)
+            if (candidate.any { it in '\u0590'..'\u05FF' }) {
+                return candidate
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 5. Try ISO-8859-8 Hebrew encoding
+        try {
+            val charsetIso = java.nio.charset.Charset.forName("ISO-8859-8")
+            val candidate = String(bytes, charsetIso)
+            if (candidate.any { it in '\u0590'..'\u05FF' }) {
+                return candidate
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Last resort: return the UTF-8 version
+        return utf8String
+    }
+
     fun isSevenZip(context: Context, uri: Uri): Boolean {
         val fileName = getFileName(context, uri)
         if (fileName.endsWith(".7z", ignoreCase = true)) return true
@@ -84,31 +143,33 @@ object ZipHelper {
                                 if (read == -1) break
                                 offset += read
                             }
-                            return String(bytes, Charsets.UTF_8)
+                            return decodeBytesToHebrewString(bytes)
                         }
                         entry = sevenZ.nextEntry
                     }
                 }
             } else {
                 val contentResolver = context.contentResolver
-                contentResolver.openInputStream(zipUri)?.use { inputStream ->
-                    ZipInputStream(inputStream).use { zipInput ->
-                        var entry: ZipEntry? = zipInput.nextEntry
-                        while (entry != null) {
-                            val name = entry.name
-                            if (name.endsWith("repo_struct.json", ignoreCase = true)) {
-                                val reader = BufferedReader(InputStreamReader(zipInput, "UTF-8"))
-                                val stringBuilder = StringBuilder()
-                                var line: String? = reader.readLine()
-                                while (line != null) {
-                                    stringBuilder.append(line).append("\n")
-                                    line = reader.readLine()
+                // Try finding repo_struct.json with different ZIP header encoding fallback
+                val charsetsToTry = listOf(Charsets.UTF_8, java.nio.charset.Charset.forName("windows-1255"), java.nio.charset.Charset.forName("IBM862"))
+                for (charset in charsetsToTry) {
+                    try {
+                        contentResolver.openInputStream(zipUri)?.use { inputStream ->
+                            ZipInputStream(inputStream, charset).use { zipInput ->
+                                var entry: ZipEntry? = zipInput.nextEntry
+                                while (entry != null) {
+                                    val name = entry.name
+                                    if (name.endsWith("repo_struct.json", ignoreCase = true)) {
+                                        val bytes = zipInput.readBytes()
+                                        return decodeBytesToHebrewString(bytes)
+                                    }
+                                    zipInput.closeEntry()
+                                    entry = zipInput.nextEntry
                                 }
-                                return stringBuilder.toString()
                             }
-                            zipInput.closeEntry()
-                            entry = zipInput.nextEntry
                         }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
             }
@@ -145,7 +206,7 @@ object ZipHelper {
                                     if (read == -1) break
                                     offset += read
                                 }
-                                val text = String(bytes, Charsets.UTF_8)
+                                val text = decodeBytesToHebrewString(bytes)
                                 parseTxtContent(text, filePath, importedKeys, questions)
                                 break
                             }
@@ -154,30 +215,36 @@ object ZipHelper {
                     }
                 }
             } else {
-                context.contentResolver.openInputStream(zipUri)?.use { inputStream ->
-                    ZipInputStream(inputStream).use { zipInput ->
-                        val entryName = filePath.replace("\\", "/")
-                        var entry: ZipEntry? = zipInput.nextEntry
-                        while (entry != null) {
-                            val name = entry.name.replace("\\", "/")
-                            if (name.equals(entryName, ignoreCase = true)) {
-                                val reader = BufferedReader(InputStreamReader(zipInput, "UTF-8"))
-                                var line = reader.readLine()
-                                while (line != null) {
-                                    val trimmed = line.trim()
-                                    if (trimmed.isNotEmpty() && !trimmed.startsWith("#")) {
-                                        val parseQ = parseAnkiLine(trimmed, filePath, importedKeys)
-                                        if (parseQ != null) {
-                                            questions.add(parseQ)
-                                        }
+                val entryName = filePath.replace("\\", "/")
+                var found = false
+                // Try opening zip using different entry name charsets
+                val charsetsToTry = listOf(
+                    Charsets.UTF_8,
+                    java.nio.charset.Charset.forName("windows-1255"),
+                    java.nio.charset.Charset.forName("IBM862")
+                )
+                for (charset in charsetsToTry) {
+                    if (found) break
+                    try {
+                        context.contentResolver.openInputStream(zipUri)?.use { inputStream ->
+                            ZipInputStream(inputStream, charset).use { zipInput ->
+                                var entry: ZipEntry? = zipInput.nextEntry
+                                while (entry != null) {
+                                    val name = entry.name.replace("\\", "/")
+                                    if (name.equals(entryName, ignoreCase = true)) {
+                                        val bytes = zipInput.readBytes()
+                                        val text = decodeBytesToHebrewString(bytes)
+                                        parseTxtContent(text, filePath, importedKeys, questions)
+                                        found = true
+                                        break
                                     }
-                                    line = reader.readLine()
+                                    zipInput.closeEntry()
+                                    entry = zipInput.nextEntry
                                 }
-                                break
                             }
-                            zipInput.closeEntry()
-                            entry = zipInput.nextEntry
                         }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
                     }
                 }
             }

@@ -214,7 +214,8 @@ fun WelcomeConfigurationScreen(viewModel: AppViewModel, settings: AppSettings?) 
             if (uri != null) {
                 try {
                     context.contentResolver.openInputStream(uri)?.use { stream ->
-                        val jsonString = String(stream.readBytes(), Charsets.UTF_8).trimStart('\uFEFF')
+                        val bytes = stream.readBytes()
+                        val jsonString = ZipHelper.decodeBytesToHebrewString(bytes).trimStart('\uFEFF')
                         viewModel.setRepoJson(jsonString)
                     }
                 } catch (e: Exception) {
@@ -1247,7 +1248,8 @@ fun ConfigurationTabScreen(viewModel: AppViewModel, settings: AppSettings?) {
             if (uri != null) {
                 try {
                     context.contentResolver.openInputStream(uri)?.use { stream ->
-                        val jsonString = String(stream.readBytes(), Charsets.UTF_8).trimStart('\uFEFF')
+                        val bytes = stream.readBytes()
+                        val jsonString = ZipHelper.decodeBytesToHebrewString(bytes).trimStart('\uFEFF')
                         viewModel.setRepoJson(jsonString)
                     }
                 } catch (e: Exception) {
