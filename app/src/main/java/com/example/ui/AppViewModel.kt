@@ -320,8 +320,11 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
     // Search Implementation
     // ----------------------------------------------------
 
+    private var searchJob: kotlinx.coroutines.Job? = null
+
     fun performSearch(query: String) {
         _searchQuery.value = query
+        searchJob?.cancel()
         val root = _repoTree.value
         if (query.isBlank() || root == null) {
             _searchResults.value = SearchResultsState.Idle
@@ -329,12 +332,15 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
         }
 
         _searchResults.value = SearchResultsState.Searching
-        viewModelScope.launch {
+        searchJob = viewModelScope.launch {
+            // Wait 200ms before running the search process (debouncing)
+            kotlinx.coroutines.delay(200)
+            
             val results = withContext(Dispatchers.Default) {
                 val matched = mutableListOf<Pair<String, RepoNode>>()
-                val rootName = root.name
                 
                 fun searchNode(node: RepoNode, currentPath: String) {
+                    if (searchJob?.isActive != true) return
                     val nodePath = if (currentPath.isEmpty()) node.name else "$currentPath/${node.name}"
                     
                     if (node.isFile) {
@@ -345,6 +351,7 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     } else {
                         for (child in node.children) {
+                            if (searchJob?.isActive != true) return
                             searchNode(child, nodePath)
                         }
                     }
@@ -353,7 +360,10 @@ class AppViewModel(application: Application) : AndroidViewModel(application) {
                 searchNode(root, "")
                 matched
             }
-            _searchResults.value = SearchResultsState.Success(results)
+            
+            if (searchJob?.isActive == true) {
+                _searchResults.value = SearchResultsState.Success(results)
+            }
         }
     }
 

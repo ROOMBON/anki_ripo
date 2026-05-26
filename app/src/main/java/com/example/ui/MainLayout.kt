@@ -330,6 +330,19 @@ fun RepositoryScreen(viewModel: AppViewModel) {
     val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
+    val ankiPermission = "com.ichi2.anki.permission.READ_WRITE_DATABASE"
+    val ankiPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                viewModel.executeAnkiDroidImport()
+            } else {
+                Toast.makeText(context, "נדרשת הרשאת גישה לאנקידראויד כדי לבצע ייבוא ישיר.", Toast.LENGTH_LONG).show()
+            }
+        }
+    )
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Search & Filter header
         OutlinedTextField(
@@ -513,7 +526,17 @@ fun RepositoryScreen(viewModel: AppViewModel) {
                     ) {
                         // Direct import via AnkiDroid API
                         Button(
-                            onClick = { viewModel.executeAnkiDroidImport() },
+                            onClick = {
+                                val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    ankiPermission
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (isGranted) {
+                                    viewModel.executeAnkiDroidImport()
+                                } else {
+                                    ankiPermissionLauncher.launch(ankiPermission)
+                                }
+                            },
                             modifier = Modifier.weight(1.0f),
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -673,6 +696,19 @@ fun PartialImportSheet(viewModel: AppViewModel) {
     val selectedKeys by viewModel.selectedPartialKeys.collectAsStateWithLifecycle()
     val fileName = viewModel.partialImportFile.value?.substringAfterLast("/") ?: ""
 
+    val context = LocalContext.current
+    val ankiPermission = "com.ichi2.anki.permission.READ_WRITE_DATABASE"
+    val ankiPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                viewModel.executeAnkiDroidPartialImport()
+            } else {
+                Toast.makeText(context, "נדרשת הרשאת גישה לאנקידראויד כדי לבצע ייבוא ישיר.", Toast.LENGTH_LONG).show()
+            }
+        }
+    )
+
     Dialog(onDismissRequest = { viewModel.closePartialImport() }) {
         Card(
             shape = RoundedCornerShape(20.dp),
@@ -818,7 +854,17 @@ fun PartialImportSheet(viewModel: AppViewModel) {
                     ) {
                         // Direct import via AnkiDroid API
                         Button(
-                            onClick = { viewModel.executeAnkiDroidPartialImport() },
+                            onClick = {
+                                val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    ankiPermission
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (isGranted) {
+                                    viewModel.executeAnkiDroidPartialImport()
+                                } else {
+                                    ankiPermissionLauncher.launch(ankiPermission)
+                                }
+                            },
                             enabled = selectedKeys.isNotEmpty(),
                             modifier = Modifier.weight(1.0f),
                             colors = ButtonDefaults.buttonColors(
