@@ -7,6 +7,8 @@ import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -348,25 +350,36 @@ fun RepositoryScreen(viewModel: AppViewModel) {
         )
 
         AnimatedVisibility(visible = searchQuery.isEmpty() && currentPath.isNotEmpty()) {
-            // Folder Navigation Breadcrumbs
-            if (currentPath.isNotEmpty()) {
-                ScrollableTabRow(
-                    selectedTabIndex = (currentPath.size - 1).coerceAtLeast(0),
-                    edgePadding = 16.dp,
-                    containerColor = Color.Transparent,
-                    divider = {}
-                ) {
-                    currentPath.forEachIndexed { idx, folderName ->
-                        Tab(
-                            selected = idx == currentPath.size - 1,
-                            onClick = { viewModel.navigateTo(idx) },
-                            text = {
-                                Text(
-                                    text = folderName,
-                                    fontWeight = if (idx == currentPath.size - 1) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (idx == currentPath.size - 1) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
+            val scrollState = rememberScrollState()
+            LaunchedEffect(currentPath.size) {
+                scrollState.animateScrollTo(scrollState.maxValue)
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(scrollState)
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                currentPath.forEachIndexed { idx, folderName ->
+                    val isLast = idx == currentPath.size - 1
+                    Text(
+                        text = folderName,
+                        fontWeight = if (isLast) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isLast) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 15.sp,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable { viewModel.navigateTo(idx) }
+                            .padding(vertical = 4.dp, horizontal = 6.dp)
+                    )
+                    if (!isLast) {
+                        Text(
+                            text = "/",
+                            fontWeight = FontWeight.Light,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                            fontSize = 15.sp,
+                            modifier = Modifier.padding(horizontal = 4.dp)
                         )
                     }
                 }
