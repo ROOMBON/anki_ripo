@@ -27,20 +27,30 @@ object AnkiDroidHelper {
     @Volatile
     private var cachedActiveAuthority: String? = null
 
+    fun isPackageInstalled(context: Context, packageName: String): Boolean {
+        val pm = context.packageManager
+        if (pm.getLaunchIntentForPackage(packageName) != null) {
+            return true
+        }
+        return try {
+            pm.getPackageInfo(packageName, 0)
+            true
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun getActiveAuthority(context: Context): String {
         cachedActiveAuthority?.let { return it }
 
         val pm = context.packageManager
-        // 1. First try checking if the packages are installed via getPackageInfo
+        // 1. First try checking if the packages are installed via isPackageInstalled
         // Highly reliable on Android 11+ because of `<package>` tags under `<queries>` in AndroidManifest.xml
         for (auth in KNOWN_AUTHORITIES) {
             val packageName = auth.removeSuffix(".providers.CardContentProvider")
-            try {
-                pm.getPackageInfo(packageName, 0)
+            if (isPackageInstalled(context, packageName)) {
                 cachedActiveAuthority = auth
                 return auth
-            } catch (e: Exception) {
-                // Ignore and proceed
             }
         }
 
@@ -94,19 +104,7 @@ object AnkiDroidHelper {
         
         // 1. Check if the corresponding package is installed first
         val packageName = auth.removeSuffix(".providers.CardContentProvider")
-        val pm = context.packageManager
-        val isInstalled = try {
-            pm.getPackageInfo(packageName, 0)
-            true
-        } catch (e: Exception) {
-            try {
-                pm.resolveContentProvider(auth, 0) != null
-            } catch (ex: Exception) {
-                false
-            }
-        }
-
-        if (!isInstalled) {
+        if (!isPackageInstalled(context, packageName)) {
             return ConnectionStatus.NOT_INSTALLED
         }
 
@@ -116,10 +114,14 @@ object AnkiDroidHelper {
             val cursor = context.contentResolver.query(uri, arrayOf("id"), null, null, null)
             if (cursor != null) {
                 cursor.close()
+                ConnectionStatus.OK
+            } else {
+                // Query returned null (provider component is disabled in AnkiDroid settings)
+                ConnectionStatus.API_DISABLED
             }
-            ConnectionStatus.OK
         } catch (e: SecurityException) {
-            ConnectionStatus.API_DISABLED
+            // SecurityException means API is active but we need permission
+            ConnectionStatus.OK
         } catch (e: Exception) {
             // General query failures after confirming package is installed means either API is disabled or pending approval
             ConnectionStatus.API_DISABLED

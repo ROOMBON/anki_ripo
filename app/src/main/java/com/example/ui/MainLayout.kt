@@ -336,6 +336,16 @@ fun RepositoryScreen(viewModel: AppViewModel) {
 
     val context = LocalContext.current
 
+    val ankiPermission = com.example.data.AnkiDroidHelper.getPermissionName(context)
+    val ankiPermissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                viewModel.executeAnkiDroidImport()
+            }
+        }
+    )
+
     Column(modifier = Modifier.fillMaxSize()) {
         // Search & Filter header
         OutlinedTextField(
@@ -524,7 +534,15 @@ fun RepositoryScreen(viewModel: AppViewModel) {
                         // Direct import via AnkiDroid API
                         Button(
                             onClick = {
-                                viewModel.executeAnkiDroidImport()
+                                val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    ankiPermission
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (isGranted) {
+                                    viewModel.executeAnkiDroidImport()
+                                } else {
+                                    ankiPermissionLauncher.launch(ankiPermission)
+                                }
                             },
                             modifier = Modifier.weight(1.0f),
                             colors = ButtonDefaults.buttonColors(
@@ -687,6 +705,16 @@ fun PartialImportSheet(viewModel: AppViewModel) {
 
     val context = LocalContext.current
 
+    val ankiPermission = com.example.data.AnkiDroidHelper.getPermissionName(context)
+    val ankiPartialPermissionLauncher = rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                viewModel.executeAnkiDroidPartialImport()
+            }
+        }
+    )
+
     Dialog(onDismissRequest = { viewModel.closePartialImport() }) {
         Card(
             shape = RoundedCornerShape(20.dp),
@@ -833,7 +861,15 @@ fun PartialImportSheet(viewModel: AppViewModel) {
                         // Direct import via AnkiDroid API
                         Button(
                             onClick = {
-                                viewModel.executeAnkiDroidPartialImport()
+                                val isGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+                                    context,
+                                    ankiPermission
+                                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (isGranted) {
+                                    viewModel.executeAnkiDroidPartialImport()
+                                } else {
+                                    ankiPartialPermissionLauncher.launch(ankiPermission)
+                                }
                             },
                             enabled = selectedKeys.isNotEmpty(),
                             modifier = Modifier.weight(1.0f),
