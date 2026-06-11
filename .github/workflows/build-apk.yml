@@ -9,7 +9,11 @@ on:
     branches:
       - main
       - master
-  workflow_dispatch: # מאפשר להריץ את הבנייה באופן ידני דרך לשונית Actions ב-GitHub
+  workflow_dispatch:
+
+# פתרון אזהרת ה-Node.js 20 על ידי אילוץ הרצה ב-Node.js 24 כפי שגיטהאב מציעה
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
 
 jobs:
   build:
@@ -20,23 +24,22 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up JDK 21
+        # פרויקט AnkiDroid מודרני דורש JDK 21 כדי להיבנות בהצלחה
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
           cache: 'gradle'
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build Debug APK
-        # בניית גרסת Debug אינה דורשת הגדרת מפתחות חתימה (Keystore) ותוכל לרוץ מיד
         run: ./gradlew assembleDebug
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: android-debug-apk
-          # חיפוש דינמי של כל קובצי ה-APK שנוצרו במהלך הבנייה
           path: '**/build/outputs/apk/**/*.apk'
